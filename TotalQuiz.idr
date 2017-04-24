@@ -7,6 +7,7 @@ import System
 
 data InfIO : Type where
      Do : IO a -> (a -> Inf InfIO) -> InfIO
+     Stop : InfIO
 
 (>>=) : IO a -> (a -> Inf InfIO) -> InfIO
 (>>=) = Do
@@ -16,6 +17,7 @@ data Fuel = Dry | More (Lazy Fuel)
 run : Fuel -> InfIO -> IO ()
 run (More fuel) (Do action cont) = do x <- action
                                       run fuel (cont x)
+run (More fuel) Stop = pure ()
 run Dry _ = putStrLn "Out of fuel."
 
 partial
@@ -44,8 +46,10 @@ quiz randoms score = do
                          quiz xs (score + 1)
                  else do putStrLn ("Wrong... the answer was " ++ show (x * y))
                          quiz xs score
-     else do putStrLn "Invalid input." 
-             quiz (x :: y :: xs) score
+     else case answer of
+          "quit" => Stop
+          _ => do putStrLn "Invalid input." 
+                  quiz (x :: y :: xs) score
 
 partial
 main : IO ()
