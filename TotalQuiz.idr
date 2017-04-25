@@ -8,25 +8,35 @@ import System
 data Command : Type -> Type where
      PutStr : String -> Command ()
      GetLine : Command String
+     Pure : ty -> Command ty
+     Bind : Command a -> (a -> Command b) -> Command b
 
 data ConsoleIO : Type -> Type where
      Do : Command a -> (a -> Inf (ConsoleIO b)) -> ConsoleIO b
      Stop : a -> ConsoleIO a
-
-(>>=) : Command a -> (a -> Inf (ConsoleIO b)) -> ConsoleIO b
-(>>=) = Do
 
 data Fuel = Dry | More (Lazy Fuel)
 
 runCommand : Command a -> IO a
 runCommand (PutStr x) = putStr x
 runCommand GetLine = getLine
+runCommand (Pure x) = pure x
+runCommand (Bind f g) = do x <- runCommand f
+                           runCommand (g x)
 
 run : Fuel -> ConsoleIO a -> IO (Maybe a)
 run (More fuel) (Do action cont) = do x <- runCommand action
                                       run fuel (cont x)
 run (More fuel) (Stop val) = pure (Just val)
 run Dry _ = pure Nothing
+
+namespace CommandDo
+          (>>=) : Command a -> (a -> Command b) -> Command b
+          (>>=) = Bind
+          
+namespace ConsoleDo
+          (>>=) : Command a -> (a -> Inf (ConsoleIO b)) -> ConsoleIO b
+          (>>=) = Do
 
 partial
 forever : Fuel
@@ -41,11 +51,15 @@ randoms seed = let seed' = 1664525 * seed + 1013904223
                    number = seed' `shiftR` 2
                in bound number :: randoms seed'
                
+readInput : String -> Command String
+readInput prompt = do PutStr prompt
+                      answer <- GetLine
+                      Pure answer
+               
 quiz : Stream Int -> Int -> ConsoleIO Int
 quiz randoms score = do 
      let (x :: y :: xs) = randoms
-     PutStr ((show x) ++ " * " ++ (show y) ++ " = ")
-     answer <- GetLine
+     answer <- readInput ((show x) ++ " * " ++ (show y) ++ " = ")
      if all isDigit (unpack answer)
      then let answerNum = the Int (cast answer)
           in  if x * y == answerNum
