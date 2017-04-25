@@ -15,3 +15,7 @@ empty = []
 p : 1 + 1 = 2
 p = Refl
 
+data T : Type where
+     A : a -> T
+
+data S = B a
