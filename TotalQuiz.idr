@@ -5,16 +5,19 @@ import System
 
 %default total
 
-data InfIO : Type where
-     Do : IO a -> (a -> Inf InfIO) -> InfIO
-     Stop : InfIO
+data Command : Type where
+     ?hmm
 
-(>>=) : IO a -> (a -> Inf InfIO) -> InfIO
+data ConsoleIO : Type where
+     Do : IO a -> (a -> Inf ConsoleIO) -> ConsoleIO
+     Stop : ConsoleIO
+
+(>>=) : IO a -> (a -> Inf ConsoleIO) -> ConsoleIO
 (>>=) = Do
 
 data Fuel = Dry | More (Lazy Fuel)
 
-run : Fuel -> InfIO -> IO ()
+run : Fuel -> ConsoleIO -> IO ()
 run (More fuel) (Do action cont) = do x <- action
                                       run fuel (cont x)
 run (More fuel) Stop = pure ()
@@ -34,7 +37,7 @@ randoms seed = let seed' = 1664525 * seed + 1013904223
                    number = seed' `shiftR` 2
                in bound number :: randoms seed'
                
-quiz : Stream Int -> Int -> InfIO
+quiz : Stream Int -> Int -> ConsoleIO
 quiz randoms score = do 
      let (x :: y :: xs) = randoms
      putStr ((show x) ++ " * " ++ (show y) ++ " = ")
