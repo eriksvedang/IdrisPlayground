@@ -9,11 +9,11 @@ data Command : Type -> Type where
      PutStr : String -> Command ()
      GetLine : Command String
 
-data ConsoleIO : Type where
-     Do : Command a -> (a -> Inf ConsoleIO) -> ConsoleIO
-     Stop : ConsoleIO
+data ConsoleIO : Type -> Type where
+     Do : Command a -> (a -> Inf (ConsoleIO b)) -> ConsoleIO b
+     Stop : a -> ConsoleIO a
 
-(>>=) : Command a -> (a -> Inf ConsoleIO) -> ConsoleIO
+(>>=) : Command a -> (a -> Inf (ConsoleIO b)) -> ConsoleIO b
 (>>=) = Do
 
 data Fuel = Dry | More (Lazy Fuel)
@@ -22,11 +22,11 @@ runCommand : Command a -> IO a
 runCommand (PutStr x) = putStr x
 runCommand GetLine = getLine
 
-run : Fuel -> ConsoleIO -> IO ()
+run : Fuel -> ConsoleIO a -> IO (Maybe a)
 run (More fuel) (Do action cont) = do x <- runCommand action
                                       run fuel (cont x)
-run (More fuel) Stop = pure ()
-run Dry _ = putStrLn "Out of fuel."
+run (More fuel) (Stop val) = pure (Just val)
+run Dry _ = pure Nothing
 
 partial
 forever : Fuel
@@ -41,7 +41,7 @@ randoms seed = let seed' = 1664525 * seed + 1013904223
                    number = seed' `shiftR` 2
                in bound number :: randoms seed'
                
-quiz : Stream Int -> Int -> ConsoleIO
+quiz : Stream Int -> Int -> ConsoleIO Int
 quiz randoms score = do 
      let (x :: y :: xs) = randoms
      PutStr ((show x) ++ " * " ++ (show y) ++ " = ")
@@ -54,11 +54,12 @@ quiz randoms score = do
                  else do PutStr ("Wrong... the answer was " ++ show (x * y) ++ "\n")
                          quiz xs score
      else case answer of
-          "quit" => Stop
+          "quit" => Stop score
           _ => do PutStr "Invalid input.\n" 
                   quiz (x :: y :: xs) score
 
 partial
 main : IO ()
 main = do seed <- time
-          run forever (quiz (randoms (fromInteger seed)) 0)
+          Just score <- run forever (quiz (randoms (fromInteger seed)) 0) | Nothing => putStrLn "Out of fuel."
+          putStrLn ("Final score: " ++ show score)
