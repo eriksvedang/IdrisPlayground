@@ -5,20 +5,25 @@ import System
 
 %default total
 
-data Command : Type where
-     ?hmm
+data Command : Type -> Type where
+     PutStr : String -> Command ()
+     GetLine : Command String
 
 data ConsoleIO : Type where
-     Do : IO a -> (a -> Inf ConsoleIO) -> ConsoleIO
+     Do : Command a -> (a -> Inf ConsoleIO) -> ConsoleIO
      Stop : ConsoleIO
 
-(>>=) : IO a -> (a -> Inf ConsoleIO) -> ConsoleIO
+(>>=) : Command a -> (a -> Inf ConsoleIO) -> ConsoleIO
 (>>=) = Do
 
 data Fuel = Dry | More (Lazy Fuel)
 
+runCommand : Command a -> IO a
+runCommand (PutStr x) = putStr x
+runCommand GetLine = getLine
+
 run : Fuel -> ConsoleIO -> IO ()
-run (More fuel) (Do action cont) = do x <- action
+run (More fuel) (Do action cont) = do x <- runCommand action
                                       run fuel (cont x)
 run (More fuel) Stop = pure ()
 run Dry _ = putStrLn "Out of fuel."
@@ -26,7 +31,6 @@ run Dry _ = putStrLn "Out of fuel."
 partial
 forever : Fuel
 forever = More forever
-
 
 bound : Int -> Int
 bound num with (divides num 12)
@@ -40,18 +44,18 @@ randoms seed = let seed' = 1664525 * seed + 1013904223
 quiz : Stream Int -> Int -> ConsoleIO
 quiz randoms score = do 
      let (x :: y :: xs) = randoms
-     putStr ((show x) ++ " * " ++ (show y) ++ " = ")
-     answer <- getLine
+     PutStr ((show x) ++ " * " ++ (show y) ++ " = ")
+     answer <- GetLine
      if all isDigit (unpack answer)
      then let answerNum = the Int (cast answer)
           in  if x * y == answerNum
-                 then do putStrLn ("Correct! Score: " ++ show (score + 1))
+                 then do PutStr ("Correct! Score: " ++ show (score + 1) ++ "\n")
                          quiz xs (score + 1)
-                 else do putStrLn ("Wrong... the answer was " ++ show (x * y))
+                 else do PutStr ("Wrong... the answer was " ++ show (x * y) ++ "\n")
                          quiz xs score
      else case answer of
           "quit" => Stop
-          _ => do putStrLn "Invalid input." 
+          _ => do PutStr "Invalid input.\n" 
                   quiz (x :: y :: xs) score
 
 partial
