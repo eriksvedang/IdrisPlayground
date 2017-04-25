@@ -12,3 +12,6 @@ f (x :: xs) = x
 empty : Vect 0 Int
 empty = []
 
+p : 1 + 1 = 2
+p = Refl
+
