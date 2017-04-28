@@ -19,3 +19,11 @@ data T : Type where
      A : a -> T
 
 data S = B a
+
+idioms : Maybe Int
+idioms = 
+  let x = Just 10
+      y = Nothing
+  in do pure (!x + !y)
+
+
